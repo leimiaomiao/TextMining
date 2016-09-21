@@ -1,6 +1,6 @@
 import glob
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 import xml.etree.ElementTree as ET
 from word_segment.WordSegment import word_segment
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     X = vectorizer.fit_transform(corpus)
 
     print("Executing clustering...")
-    km = KMeans(n_clusters=TRUE_K)
+    km = MiniBatchKMeans(n_clusters=TRUE_K)
     km.fit(X)
     order_centroids = km.cluster_centers_.argsort()[:, ::-1]
     terms = vectorizer.get_feature_names()
