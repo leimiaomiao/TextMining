@@ -2,18 +2,26 @@ import glob
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 import xml.etree.ElementTree as ET
+from word_segment.WordSegment import word_segment
 
-TRUE_K = 8
+TRUE_K = 5
 
 
-def load_data(root_path):
+def load_stop_words():
+    path = "../stopwords.txt"
+    stop_words = [line.decode("gbk").strip() for line in open(path, "rb").readlines()]
+    return stop_words
+
+
+def load_data(root_path, extract=True, decode="utf-8"):
     docs = list()
     file_list = glob.glob(root_path)
 
     for file in file_list:
         with open(file, 'rb') as f:
-            doc = f.read().decode("utf-8")
-            doc = extract_main_info(doc)
+            doc = f.read().decode(decode)
+            if extract:
+                doc = extract_main_info(doc)
             docs.append(doc)
         f.close()
 
@@ -30,16 +38,14 @@ def extract_main_info(doc):
         return ""
 
 
-def word_segment(doc):
-    pass
-
-
 if __name__ == "__main__":
     print("Loading data...")
     corpus = load_data("../公开民事文书xml/*.xml")
+    stopwords = load_stop_words()
 
     print("Extracting feature...")
-    vectorizer = TfidfVectorizer()
+    vectorizer = TfidfVectorizer(analyzer="word", tokenizer=word_segment,
+                                 stop_words=stopwords)
     X = vectorizer.fit_transform(corpus)
 
     print("Executing clustering...")
