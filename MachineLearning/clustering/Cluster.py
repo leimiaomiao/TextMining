@@ -4,12 +4,14 @@ from sklearn.cluster import KMeans
 import xml.etree.ElementTree as ET
 from word_segment.WordSegment import word_segment
 
-TRUE_K = 5
+TRUE_K = 8
 
 
 def load_stop_words():
     path = "../stopwords.txt"
     stop_words = [line.decode("gbk").strip() for line in open(path, "rb").readlines()]
+    stop_words.append("原告")
+    stop_words.append("被告")
     return stop_words
 
 
