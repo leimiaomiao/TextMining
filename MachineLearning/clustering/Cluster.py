@@ -1,18 +1,11 @@
 import glob
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans, MiniBatchKMeans
-import xml.etree.ElementTree as ET
+from util.FileReader import read_main_info, load_stop_words
 from word_segment.WordSegment import word_segment
 
+
 TRUE_K = 8
-
-
-def load_stop_words():
-    path = "../stopwords.txt"
-    stop_words = [line.decode("gbk").strip() for line in open(path, "rb").readlines()]
-    stop_words.append("原告")
-    stop_words.append("被告")
-    return stop_words
 
 
 def load_data(root_path, extract=True, decode="utf-8"):
@@ -20,24 +13,9 @@ def load_data(root_path, extract=True, decode="utf-8"):
     file_list = glob.glob(root_path)
 
     for file in file_list:
-        with open(file, 'rb') as f:
-            doc = f.read().decode(decode)
-            if extract:
-                doc = extract_main_info(doc)
-            docs.append(doc)
-        f.close()
+        docs.append(read_main_info(file, extract=extract, decode=decode))
 
     return docs
-
-
-def extract_main_info(doc):
-    root = ET.fromstring(doc)
-    info = root.find(".//AJJBQK[@nameCN='案件基本情况']")
-    if info is not None:
-        main_info = info.get("value")
-        return main_info
-    else:
-        return ""
 
 
 if __name__ == "__main__":
