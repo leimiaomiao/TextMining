@@ -5,14 +5,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from word_segment.WordSegment import word_segment
 from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import metrics
+from sklearn import metrics, svm
+from datetime import datetime
+import pickle
 
 JSON_FILE = "category.json"
 
 
-def load_data_to_json(root_path="/Users/leimiaomiao/Desktop/行业分类",
-                      extract=True,
-                      decode="utf-8"):
+def load_data_to_json(root_path, extract=True, decode="utf-8"):
     """
     Pre-process xml files, including extract main info from xml, and load category info.
     :param root_path:
@@ -47,7 +47,7 @@ def load_data_to_json(root_path="/Users/leimiaomiao/Desktop/行业分类",
         json.dump(category_map, f)
 
 
-def load_data_set_from_json(ratio=0.7):
+def load_data_set_from_json(json_path, ratio=0.7):
     """
     load training set and testing set from json
     :param ratio:
@@ -58,8 +58,8 @@ def load_data_set_from_json(ratio=0.7):
 
     test_doc_list = []
     test_category_list = []
-    if os.path.exists(JSON_FILE):
-        with open(JSON_FILE, "r") as f:
+    if os.path.exists(json_path):
+        with open(json_path, "r") as f:
             category_map = json.load(f)
             categories = category_map.keys()
 
@@ -84,23 +84,44 @@ def load_data_set_from_json(ratio=0.7):
 
 if __name__ == "__main__":
     # load training set and testing set from raw data.
-    train_doc_list, train_category_list, test_doc_list, test_category_list = load_data_set_from_json()
-    print(len(train_doc_list), len(train_category_list), len(test_doc_list), len(test_category_list))
+    if not os.path.exists(JSON_FILE):
+        print("Pre-processing raw data...")
+        load_data_to_json(root_path="/Users/leimiaomiao/Desktop/行业分类")
 
+    print("Loading data...")
+    train_set, train_set_category, test_set, test_category_set = load_data_set_from_json(json_path=JSON_FILE)
+
+    print("Vectorizing training data set...")
     stopwords = load_stop_words()
     vectorizer = TfidfVectorizer(analyzer="word", tokenizer=word_segment,
                                  stop_words=stopwords)
 
-    trainX = vectorizer.fit_transform(train_doc_list).toarray()
-    trainY = train_category_list
+    trainX = vectorizer.fit_transform(train_set).toarray()
+    trainY = train_set_category
     trainX, trainY = shuffle(trainX, trainY)
+    print("Number of feature dimensions is %s" % len(vectorizer.get_feature_names()))
 
+    # RandomForestClassifier
+    print("Training model with randomForestClassifier...")
+    timer = datetime.now()
     rfc = RandomForestClassifier(n_estimators=100, criterion='gini')
-    # scores = cross_val_score(svc, trainX, trainY, cv = 10, n_jobs = 10, scoring = 'accuracy')
-    # print scores.mean(), scores.std()
 
     rfc.fit(trainX, trainY)
 
-    testX, testY = vectorizer.transform(test_doc_list).toarray(), test_category_list
+    print("Predicting with test data set...")
+    testX, testY = vectorizer.transform(test_set).toarray(), test_category_set
     preY = rfc.predict(testX)
-    print(metrics.accuracy_score(testY, preY))
+    print("Accuracy score is %s" % metrics.accuracy_score(testY, preY))
+    print("Time duration: %s sec" % abs(timer - datetime.now()).seconds)
+
+    # SupportVectorClassifier
+    print("Training model with supportVectorClassifier...")
+    timer = datetime.now()
+    svc = svm.SVC()
+    svc.fit(trainX, trainY)
+
+    print("Predicting with test data set...")
+    testX, testY = vectorizer.transform(test_set).toarray(), test_category_set
+    preY = svc.predict(testX)
+    print("Accuracy score is %s" % metrics.accuracy_score(testY, preY))
+    print("Time duration: %s sec" % abs(timer - datetime.now()).seconds)
