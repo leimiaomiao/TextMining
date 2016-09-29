@@ -7,7 +7,6 @@ from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics, svm
 from datetime import datetime
-import pickle
 
 JSON_FILE = "category.json"
 
