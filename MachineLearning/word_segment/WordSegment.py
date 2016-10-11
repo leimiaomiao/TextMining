@@ -7,5 +7,5 @@ def word_segment(content):
 
 
 if __name__ == "__main__":
-    seg = word_segment("我爱北京天安门.")
+    seg = word_segment("给原告销售'红樱子'有机高粱种子")
     print(" ".join(seg))

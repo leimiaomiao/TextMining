@@ -1,4 +1,4 @@
-from util.XMLParser import extract_main_info
+from util.XMLParser import extract_main_info, extract_accuser_clarify_info
 
 
 def read_main_info(from_file_path, extract, decode="utf-8"):
@@ -6,6 +6,14 @@ def read_main_info(from_file_path, extract, decode="utf-8"):
         doc = f.read().decode(decode)
         if extract:
             doc = extract_main_info(doc)
+        return doc
+
+
+def read_accuser_clarify_info(from_file_path, extract, decode="utf-8"):
+    with open(from_file_path, "rb") as f:
+        doc = f.read().decode(decode)
+        if extract:
+            doc = extract_accuser_clarify_info(doc)
         return doc
 
 

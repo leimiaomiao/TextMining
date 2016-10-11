@@ -113,14 +113,14 @@ if __name__ == "__main__":
     print("Accuracy score is %s" % metrics.accuracy_score(testY, preY))
     print("Time duration: %s sec" % abs(timer - datetime.now()).seconds)
 
-    # SupportVectorClassifier
-    print("Training model with supportVectorClassifier...")
-    timer = datetime.now()
-    svc = svm.SVC()
-    svc.fit(trainX, trainY)
-
-    print("Predicting with test data set...")
-    testX, testY = vectorizer.transform(test_set).toarray(), test_category_set
-    preY = svc.predict(testX)
-    print("Accuracy score is %s" % metrics.accuracy_score(testY, preY))
-    print("Time duration: %s sec" % abs(timer - datetime.now()).seconds)
+    # # SupportVectorClassifier
+    # print("Training model with supportVectorClassifier...")
+    # timer = datetime.now()
+    # svc = svm.SVC()
+    # svc.fit(trainX, trainY)
+    #
+    # print("Predicting with test data set...")
+    # testX, testY = vectorizer.transform(test_set).toarray(), test_category_set
+    # preY = svc.predict(testX)
+    # print("Accuracy score is %s" % metrics.accuracy_score(testY, preY))
+    # print("Time duration: %s sec" % abs(timer - datetime.now()).seconds)
