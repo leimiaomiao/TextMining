@@ -1,7 +1,25 @@
-from OverseaUniApplyPrediction.FeatureExtracter import FeatureExtracter
+import json
+import csv
 
 
-class ManualFeatureExtracter(FeatureExtracter):
+class ManualFeatureExtracter:
+    def __init__(self, csv_path):
+        self.file_path = csv_path
+        self.data = self.read_csv(self.file_path)
+
+    @classmethod
+    def read_csv(cls, csv_path):
+        csv_file = open(csv_path, encoding="utf-8")
+        reader = csv.DictReader(csv_file)
+
+        row_list = list()
+        row_index_is_zero = True
+        for row in reader:
+            if not row_index_is_zero and row["ranking"] != "NULL":
+                row_list.append(row)
+            row_index_is_zero = False
+        return row_list
+
     def pre_process_data(self):
         instance_list = list()
         for row in self.data:
@@ -12,6 +30,7 @@ class ManualFeatureExtracter(FeatureExtracter):
             instance.update(self.extract_feature_applied_school_ranking(row))
             instance.update(self.extract_feature_gre(row))
             instance.update(self.extract_feature_undergrad_gpa(row))
+            instance.update(self.extract_result(row))
             instance_list.append(instance)
         return instance_list
 
@@ -92,6 +111,8 @@ class ManualFeatureExtracter(FeatureExtracter):
 
 
 if __name__ == "__main__":
-    feature_extracter = ManualFeatureExtracter("query.csv")
+    feature_extracter = ManualFeatureExtracter("../data/UniApplyData.csv")
     instances = feature_extracter.pre_process_data()
-    print(len(instances))
+    with open("../data/UniApplyInstances.json", "w") as file:
+        json.dump(instances, file)
+

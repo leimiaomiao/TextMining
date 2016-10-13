@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics, svm
 from datetime import datetime
 
-JSON_FILE = "category.json"
+JSON_FILE = "../data/category.json"
 
 
 def load_data_to_json(root_path, extract=True, decode="utf-8"):

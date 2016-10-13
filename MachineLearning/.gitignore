@@ -1,5 +1,3 @@
 公开民事文书xml/*
 .idea/*
-classification/category.json
-/OverseaUniApplyPrediction/query.csv
-/classification/sample.csv
+data/*

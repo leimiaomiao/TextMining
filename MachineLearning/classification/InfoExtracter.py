@@ -3,7 +3,7 @@ import glob
 import csv
 
 
-def prepare_sample(source_dir_path, target_file_path="sample.csv", sample_num=500):
+def prepare_sample(source_dir_path, target_file_path="../data/500sample.csv", sample_num=500):
     file_list = glob.glob(source_dir_path)
 
     rows = []
