@@ -1,11 +1,26 @@
-import json
 import csv
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.utils import shuffle
+from sklearn import metrics, svm, tree, naive_bayes
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 
 class ManualFeatureExtracter:
-    def __init__(self, csv_path):
+    classifier_dict = {
+        "SVM": OneVsRestClassifier(svm.SVC(kernel="linear")),
+        "RFC": RandomForestClassifier(n_estimators=100, criterion='gini'),
+        "DT": tree.DecisionTreeClassifier(),
+        "NB": naive_bayes.GaussianNB()
+    }
+
+    def __init__(self, csv_path, test_size=0.7):
         self.file_path = csv_path
+        self.test_size = test_size
         self.data = self.read_csv(self.file_path)
+        self.X, self.Y = self.pre_process_data()
+        self.train_set_x, self.train_set_y, self.test_set_x, self.test_set_y = self.load_data_set(ratio=test_size)
 
     @classmethod
     def read_csv(cls, csv_path):
@@ -21,7 +36,8 @@ class ManualFeatureExtracter:
         return row_list
 
     def pre_process_data(self):
-        instance_list = list()
+        data_x = list()
+        data_y = list()
         for row in self.data:
             instance = {}
             instance.update(self.extract_feature_undergrad_school_level(row))
@@ -30,9 +46,37 @@ class ManualFeatureExtracter:
             instance.update(self.extract_feature_applied_school_ranking(row))
             instance.update(self.extract_feature_gre(row))
             instance.update(self.extract_feature_undergrad_gpa(row))
-            instance.update(self.extract_result(row))
-            instance_list.append(instance)
-        return instance_list
+            data_x.append(instance)
+
+            data_y.append(self.extract_result(row))
+        return data_x, data_y
+
+    def load_data_set(self, ratio):
+        train_set_length = int(len(self.X) * ratio)
+
+        train_set_x = self.X[:train_set_length]
+        train_set_y = self.Y[:train_set_length]
+
+        test_set_x = self.X[train_set_length:]
+        test_set_y = self.Y[train_set_length:]
+        return train_set_x, train_set_y, test_set_x, test_set_y
+
+    def classify(self, classifier_method="RFC"):
+        classifier = self.classifier_dict.get(classifier_method)
+
+        vec = DictVectorizer()
+
+        train_x = vec.fit_transform(self.train_set_x).toarray()
+        train_y = np.array(self.train_set_y, dtype=str)
+
+        train_x, train_y = shuffle(train_x, train_y)
+
+        classifier.fit(train_x, train_y)
+
+        test_x = vec.transform(self.test_set_x).toarray()
+        test_y = np.array(self.test_set_y, dtype=str)
+        pre_y = classifier.predict(test_x)
+        print("Accuracy score is %s" % metrics.accuracy_score(test_y, pre_y))
 
     @staticmethod
     def extract_feature_english_level(row):
@@ -100,7 +144,10 @@ class ManualFeatureExtracter:
 
     @staticmethod
     def extract_result(row):
-        return {"result": row["result"]}
+        result = row["result"]
+        if result != "被拒":
+            result = "offer"
+        return result
 
     @staticmethod
     def extract_feature_highest_degree(row):
@@ -112,7 +159,6 @@ class ManualFeatureExtracter:
 
 if __name__ == "__main__":
     feature_extracter = ManualFeatureExtracter("../data/UniApplyData.csv")
-    instances = feature_extracter.pre_process_data()
-    with open("../data/UniApplyInstances.json", "w") as file:
-        json.dump(instances, file)
-
+    feature_extracter.classify(classifier_method="NB")
+    feature_extracter.classify(classifier_method="DT")
+    feature_extracter.classify(classifier_method="RFC")
