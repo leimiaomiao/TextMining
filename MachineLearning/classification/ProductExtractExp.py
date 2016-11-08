@@ -156,8 +156,8 @@ class ProductExtract(object):
             j = 0
             for r in result:
                 if r == "PRODUCT":
-                    print("FOUND A PRODUCT")
-                    print(self.tagged_instance_list[i][j])
+                    print("Found product: %s" % self.tagged_instance_list[i][j][0])
+                    print("Labeled as %s" % self.tagged_instance_list[i][j][len(self.tagged_instance_list[i][j]) - 1])
                 j += 1
             i += 1
 
@@ -200,5 +200,5 @@ if __name__ == "__main__":
     # print(product_extract.tagged_instance_list[0])
     # product_extract.instance2features(product_extract.tagged_instance_list[0])
 
-    # product_extract.predict()
+    product_extract.predict()
     print(product_extract.bio_classification_report())
