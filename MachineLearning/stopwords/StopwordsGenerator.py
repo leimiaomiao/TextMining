@@ -1,8 +1,7 @@
 import json
-# from word_segment.LtpApi import word_segment
-from util.StringHandler import cut_sentence
-import jieba
 import os
+from util.XMLParser import extract_word_from_xml
+import jieba
 
 
 def doc_word_seg():
@@ -12,6 +11,7 @@ def doc_word_seg():
     """
     ws_ms_category_file_path = "../data/ws_ms_category.json"
     doc_word_seg_file_path = "../data/doc_word_seg.json"
+    word_segment_file_root = "../data/output"
 
     if os.path.exists(doc_word_seg_file_path):
 
@@ -21,24 +21,46 @@ def doc_word_seg():
     else:
         print("Extracting basic info from files...")
         sample_list = json.load(open(ws_ms_category_file_path, "r"))
-        doc_list = [info["BASIC_INFO"] for info in sample_list]
 
         print("Segmenting words...")
         doc_word_list_ = []
-        for doc in doc_list:
-            word_list_ = []
-            sentences = cut_sentence(doc)
-            for sentence in sentences:
-                seg_list = jieba.cut(sentence, cut_all=False)
-                for seg in seg_list:
-                    if seg not in word_list_:
-                        word_list_.append(seg)
+        for sample in sample_list:
+            content = load_word_segment("%s/%s.xml" % (word_segment_file_root, sample["ID"]))
+            word_segment = extract_word_from_xml(content)
 
-            doc_word_list_.append(word_list_)
+            if len(word_segment) == 0:
+                word_segment = jieba.cut(sample["BASIC_INFO"])
+
+            doc_word_list_.append((sample["ID"], word_segment))
 
         json.dump(doc_word_list_, open(doc_word_seg_file_path, "w"))
         print("Loading finished!")
     return doc_word_list_
+
+
+def load_word_segment(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
+            file.close()
+        return content
+    return ""
+
+
+def duplicate_words_removal(doc_word_list_):
+    print("Starting duplicate words removal...")
+    unique_doc_word_seg_file_path = "../data/unique_doc_word_seg.json"
+    if os.path.exists(unique_doc_word_seg_file_path):
+        unique_doc_word_list_ = json.load(open(unique_doc_word_seg_file_path, "r"))
+    else:
+        unique_doc_word_list_ = []
+        for _id, word_list_ in doc_word_list_:
+            unique_word_list = get_word_set(word_list_)
+            unique_doc_word_list_.append((_id, unique_word_list))
+        json.dump(unique_doc_word_list_, open(unique_doc_word_seg_file_path, "w"))
+
+    print("Duplicate words removal finished!")
+    return unique_doc_word_list_
 
 
 def symbols_removal(doc_word_list_):
@@ -56,12 +78,12 @@ def symbols_removal(doc_word_list_):
         symbols = [line.decode("utf-8").strip() for line in open(stopwords_symbols_file_path, "rb").readlines()]
 
         new_doc_word_list_ = []
-        for word_list_ in doc_word_list_:
+        for _id, word_list_ in doc_word_list_:
             new_word_list_ = []
             for word_ in word_list_:
                 if word_ not in symbols and not str(word_).isnumeric():
                     new_word_list_.append(word_)
-            new_doc_word_list_.append(new_word_list_)
+            new_doc_word_list_.append((_id, new_word_list_))
 
         json.dump(new_doc_word_list_, open(doc_word_seg_symbols_removal_file_path, "w"))
     print("Symbols removal finished!")
@@ -99,9 +121,8 @@ def calc_trunk_df(doc_word_list_trunk, trunk_index):
     trunk_temp_file_path = "../data/trunk/%s.json" % trunk_index
 
     word_frequency_ = {}
-    for word_list_ in doc_word_list_trunk:
-
-        for word in get_word_set(word_list_):
+    for _, word_list_ in doc_word_list_trunk:
+        for word in word_list_:
             if word in word_frequency_.keys():
                 word_frequency_[word] += 1
             else:
@@ -125,5 +146,11 @@ def get_word_set(word_list):
 if __name__ == "__main__":
     doc_word_list = doc_word_seg()
     doc_word_list = symbols_removal(doc_word_list)
+    doc_word_list = duplicate_words_removal(doc_word_list)
     word_frequency = calc_df(doc_word_list)
 
+    with open("../words_frequency.txt", "w") as file:
+        for wf in word_frequency:
+            file.write("%s,%s" % (wf[0], wf[1]))
+            file.write("\n")
+        file.close()

@@ -20,12 +20,16 @@ class IndustryClassifier(object):
         sample_list = []
         with open(file_path, "r", encoding="utf-8") as file:
             reader = csv.reader(file)
+            index = 0
             for row in reader:
+
                 case_id = str(row[1]).lstrip()
                 category = str(row[2]).lstrip()
                 if case_id in ms_info_dict.keys():
                     ms_basic_info = ms_info_dict[case_id]
+                    index += 1
                     sample = {
+                        "ID": index,
                         "CASE_ID": case_id,
                         "BASIC_INFO": ms_basic_info,
                         "CATEGORY": category
@@ -59,7 +63,7 @@ class IndustryClassifier(object):
 
 
 if __name__ == "__main__":
-    # classifier = IndustryClassifier()
-    # print(len(classifier.samples))
-    doc_word_seg = json.load(open("../data/doc_word_seg.json"))
-    print(doc_word_seg[0])
+    classifier = IndustryClassifier()
+    print(len(classifier.samples))
+    # doc_word_seg = json.load(open("../data/doc_word_seg.json"))
+    # print(doc_word_seg[0])

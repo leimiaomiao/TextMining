@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 
 
 def extract_main_info(doc):
@@ -35,3 +36,13 @@ def extract_accuser_clarify_info(doc):
         return main_info
     else:
         return ""
+
+
+def extract_word_from_xml(doc):
+    word_list = []
+
+    soup = BeautifulSoup(doc, "lxml")
+    element_list = soup.find_all("word")
+    for element in element_list:
+        word_list.append(element["cont"])
+    return word_list
