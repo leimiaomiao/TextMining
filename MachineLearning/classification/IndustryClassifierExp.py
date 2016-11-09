@@ -5,12 +5,28 @@ import os
 import jieba
 from util.XMLParser import extract_main_info, extract_ah_info, extract_word_from_xml
 from classification.Preprocessor import Preprocessor
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.utils import shuffle
+from sklearn import metrics, svm, tree, naive_bayes
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 
 class IndustryClassifier(object):
     WS_MS_CATEGORY_FILE_PATH = "../data/ws_ms_category.json"
     doc_word_seg_file_path = "../data/doc_word_seg.json"
     word_segment_file_root = "../data/output"
+    preprocessor_file_path = "../data/preprocessed.json"
+    industry_classification_dataset_file_path = "../data/industry_classification_dataset.json"
+    category_sample_map_file_path = "../data/category_sample_map.json"
+
+    classifier_dict = {
+        "SVM": OneVsRestClassifier(svm.SVC(kernel="linear")),
+        "RFC": RandomForestClassifier(n_estimators=100, criterion='gini'),
+        "DT": tree.DecisionTreeClassifier(),
+        "NB": naive_bayes.GaussianNB()
+    }
 
     def __init__(self):
         if not os.path.exists(self.WS_MS_CATEGORY_FILE_PATH):
@@ -23,8 +39,82 @@ class IndustryClassifier(object):
 
         # Pre process samples,
         # including symbols removal, location name removal, numbers removal, human name removal, etc.
-        # preprocessor = Preprocessor(self.word_seg_samples)
-        # self.processed_samples = preprocessor.process()
+        if not os.path.exists(self.preprocessor_file_path):
+            preprocessor = Preprocessor()
+            self.processed_samples = preprocessor.process_samples(self.word_seg_samples)
+            json.dump(self.processed_samples, open(self.preprocessor_file_path, "w"))
+        else:
+            self.processed_samples = json.load(open(self.preprocessor_file_path, "r"))
+
+        self.sample_category_map = self.get_sample_category_map()
+        self.train_set, self.train_set_category, self.test_set, self.test_set_category = self.load_data_set()
+
+    def load_data_set(self, ratio=0.7):
+        print("Start loading dataset...")
+        if os.path.exists(self.industry_classification_dataset_file_path):
+            data = json.load(open(self.industry_classification_dataset_file_path, "r"))
+            train_set = data["train_set"]
+            train_set_category = data["train_set_category"]
+            test_set = data["test_set"]
+            test_set_category = data["test_set_category"]
+        else:
+            train_set = []
+            train_set_category = []
+            test_set = []
+            test_set_category = []
+
+            category_list = self.sample_category_map.keys()
+            for category in category_list:
+                sample_list = self.sample_category_map.get(category)
+                train_set_length = int(len(sample_list) * ratio)
+
+                index = 0
+                for sample in sample_list:
+                    if index < train_set_length:
+                        train_set.append(sample)
+                        train_set_category.append(category)
+                    else:
+                        test_set.append(sample)
+                        test_set_category.append(category)
+                    index += 1
+
+            data = {
+                "train_set": train_set,
+                "train_set_category": train_set_category,
+                "test_set": test_set,
+                "test_set_category": test_set_category
+            }
+            json.dump(data, open(self.industry_classification_dataset_file_path, "w"))
+        print("Loading dataset finished!")
+        return train_set, train_set_category, test_set, test_set_category
+
+    def get_sample_category_map(self):
+        print("Getting sample category map...")
+        if os.path.exists(self.category_sample_map_file_path):
+            category_map = json.load(open(self.category_sample_map_file_path, "r"))
+        else:
+            category_map = {}
+            for sample in self.processed_samples:
+                _id = sample[0]
+                word_seg_sample = " ".join(sample[1])
+                category = str(self.get_category_by_id(_id)).lstrip()
+                if len(category) < 2:
+                    category = "其他行业"
+                if category in category_map.keys():
+                    sample_list = category_map.get(category)
+                    sample_list.append(word_seg_sample)
+                else:
+                    category_map[category] = list()
+                    category_map[category].append(word_seg_sample)
+            json.dump(category_map, open(self.category_sample_map_file_path, "w"))
+        print("Getting sample category map finished!")
+        return category_map
+
+    def get_category_by_id(self, _id):
+        for sample in self.samples:
+            if sample["ID"] == _id:
+                return sample["CATEGORY"]
+        return "其他行业"
 
     def load_samples_category(self, file_path="../data/wstool_ms.csv"):
         ms_info_dict = self.load_ms_files()
@@ -119,15 +209,32 @@ class IndustryClassifier(object):
             return content
         return ""
 
+    def classify(self, classifier_method="RFC"):
+        classifier = self.classifier_dict.get(classifier_method)
+
+        vec = TfidfVectorizer(min_df=10)
+        train_x = vec.fit_transform(self.train_set).toarray()
+        print(vec.get_feature_names())
+        print(len(vec.get_feature_names()))
+        train_y = np.array(self.train_set_category, dtype=str)
+        train_x, train_y = shuffle(train_x, train_y)
+
+        classifier.fit(train_x, train_y)
+
+        test_x = vec.transform(self.test_set).toarray()
+        test_y = np.array(self.test_set_category, dtype=str)
+        pre_y = classifier.predict(test_x)
+        print("Method: %s accuracy score is %s" % (classifier_method, metrics.accuracy_score(test_y, pre_y)))
+
 
 if __name__ == "__main__":
-    classifier = IndustryClassifier()
-    print(classifier.samples[0])
-    print(classifier.word_seg_samples[0])
+    industry_classifier = IndustryClassifier()
 
-    preprocessor = Preprocessor([classifier.word_seg_samples[0]])
-    processed_samples = preprocessor.process_samples()
+    map = industry_classifier.sample_category_map
+    for key in map.keys():
+        print("%s : %s" % (key, len(map.get(key))))
 
-    print(processed_samples)
-
-    print("Dimension reduction number is %s" % (len(classifier.word_seg_samples[0][1]) - len(processed_samples[0][1])))
+    industry_classifier.classify(classifier_method="NB")
+    industry_classifier.classify(classifier_method="DT")
+    industry_classifier.classify(classifier_method="RFC")
+    industry_classifier.classify(classifier_method="SVM")

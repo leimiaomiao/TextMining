@@ -5,22 +5,24 @@ import re
 
 
 class Preprocessor:
-    def __init__(self, word_seg_samples=[]):
+    def __init__(self, ):
         self.symbol_list = self.get_symbol_list()
         self.location_name_list = self.get_location_name_list()
-        self.word_seg_samples = word_seg_samples
+        self.stopwords_list = self.get_stopwords_list()
 
         self.procedures = [
             self.remove_symbols,
             self.remove_numbers,
+            self.remove_characters,
+            self.remove_cn_numbers,
             self.remove_location_names,
             self.remove_human_names,
             self.remove_stopwords
         ]
 
-    def process_samples(self):
+    def process_samples(self, word_seg_samples):
         processed_samples = []
-        for sample in self.word_seg_samples:
+        for sample in word_seg_samples:
             _id = sample[0]
             word_seg_samples = sample[1]
 
@@ -39,6 +41,18 @@ class Preprocessor:
         for procedure in self.procedures:
             word = procedure(word)
         return word
+
+    @staticmethod
+    def get_stopwords_list():
+        stopwords_list_by_frequency_file_path = "../words_frequency_filtered.txt"
+        stopwords = []
+        with open(stopwords_list_by_frequency_file_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+            for line in lines:
+                str_list = line.split(",")
+                word = str_list[0]
+                stopwords.append(word)
+        return stopwords
 
     @staticmethod
     def get_symbol_list():
@@ -105,7 +119,10 @@ class Preprocessor:
         return ""
 
     def remove_stopwords(self, word):
-        return word
+        if len(word) > 0 and word not in self.stopwords_list:
+            return word
+        else:
+            return ""
 
     def remove_human_names(self, word):
         return word
@@ -114,6 +131,24 @@ class Preprocessor:
     def remove_numbers(word):
         if len(word) > 0 and not str(word).isnumeric() and not str(word).isdecimal():
             pattern = re.compile(r'.*\d+')
+            result = pattern.match(word)
+            if result is None:
+                return word
+        return ""
+
+    @staticmethod
+    def remove_characters(word):
+        if len(word) > 0:
+            pattern = re.compile(r'.*[a-zA-Z]+')
+            result = pattern.match(word)
+            if result is None:
+                return word
+        return ""
+
+    @staticmethod
+    def remove_cn_numbers(word):
+        if len(word) > 0:
+            pattern = re.compile(r'.*[零一二三四五六七八九十／年月日天]+')
             result = pattern.match(word)
             if result is None:
                 return word
