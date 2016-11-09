@@ -1,13 +1,44 @@
 import csv
 import json
 import os
-from classification.IndustryClassifierExp import IndustryClassifier
+import re
 
 
 class Preprocessor:
-    def __init__(self):
+    def __init__(self, word_seg_samples=[]):
         self.symbol_list = self.get_symbol_list()
         self.location_name_list = self.get_location_name_list()
+        self.word_seg_samples = word_seg_samples
+
+        self.procedures = [
+            self.remove_symbols,
+            self.remove_numbers,
+            self.remove_location_names,
+            self.remove_human_names,
+            self.remove_stopwords
+        ]
+
+    def process_samples(self):
+        processed_samples = []
+        for sample in self.word_seg_samples:
+            _id = sample[0]
+            word_seg_samples = sample[1]
+
+            processed_word_seg_sample = []
+            for word in word_seg_samples:
+                for procedure in self.procedures:
+                    word = procedure(word)
+                if len(word) > 0:
+                    processed_word_seg_sample.append(word)
+
+            processed_samples.append((_id, processed_word_seg_sample))
+
+        return processed_samples
+
+    def process_word(self, word):
+        for procedure in self.procedures:
+            word = procedure(word)
+        return word
 
     @staticmethod
     def get_symbol_list():
@@ -59,46 +90,31 @@ class Preprocessor:
             name_list = json.load(open(stopwords_location_names_file_path, "r"))
         return name_list
 
+    def remove_symbols(self, word):
+        if len(word) > 0 and word not in self.symbol_list:
+            return word
+        return ""
+
+    def remove_location_names(self, word):
+        if len(word) > 0 and word not in self.location_name_list \
+                and not str(word).endswith("县") \
+                and not str(word).endswith("区") \
+                and not str(word).endswith("村") \
+                and not str(word).endswith("镇"):
+            return word
+        return ""
+
+    def remove_stopwords(self, word):
+        return word
+
+    def remove_human_names(self, word):
+        return word
+
     @staticmethod
-    def word_segment(sentence):
-        pass
-
-    def remove_symbols(self, word_list):
-        new_word_list = []
-
-        for word in word_list:
-            if word not in self.symbol_list:
-                new_word_list.append(word)
-
-        return new_word_list
-
-    def remove_location_names(self, word_list):
-        new_word_list = []
-
-        for word in word_list:
-            if word not in self.location_name_list:
-                new_word_list.append(word)
-
-        return new_word_list
-
-    def remove_stopwords(self, word_list):
-        pass
-
-if __name__ == "__main__":
-    industry_classifier = IndustryClassifier()
-    # for sample in industry_classifier.samples:
-    #     # with open("/Users/leimiaomiao/Documents/Projects/Postgraduate/TextMining/input/%s.txt" % sample["ID"], "wb") as file:
-    #     #     file.write(str(sample["BASIC_INFO"]).encode("utf-8"))
-    #     # file.close()
-    #
-    #     os.system("cat %s/%s.txt | %s --segmentor-model %s --last-stage ws > %s/%s.txt" % (
-    #         "../../input",
-    #         sample["ID"],
-    #         "../../ltp/bin/ltp_test",
-    #         "../../ltp/ltp_data/cws.model",
-    #         "../../output",
-    #         sample["ID"])
-    #     )
-    #     break
-
-
+    def remove_numbers(word):
+        if len(word) > 0 and not str(word).isnumeric() and not str(word).isdecimal():
+            pattern = re.compile(r'.*\d+')
+            result = pattern.match(word)
+            if result is None:
+                return word
+        return ""

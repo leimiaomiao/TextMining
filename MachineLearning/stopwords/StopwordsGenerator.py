@@ -2,19 +2,19 @@ import json
 import os
 from util.XMLParser import extract_word_from_xml
 import jieba
+from classification.Preprocessor import Preprocessor
 
 
 def doc_word_seg():
     """
     load docs, and then do word segmentation.
-    :return:
+    :return: list of tuple, (id, segment_word_list)
     """
     ws_ms_category_file_path = "../data/ws_ms_category.json"
     doc_word_seg_file_path = "../data/doc_word_seg.json"
     word_segment_file_root = "../data/output"
 
     if os.path.exists(doc_word_seg_file_path):
-
         print("Pre segmented files found, loading...")
         doc_word_list_ = json.load(open(doc_word_seg_file_path, "r"))
         print("Loading finished!")
@@ -29,7 +29,10 @@ def doc_word_seg():
             word_segment = extract_word_from_xml(content)
 
             if len(word_segment) == 0:
-                word_segment = jieba.cut(sample["BASIC_INFO"])
+                word_segment = []
+                seg_list = jieba.cut(sample["BASIC_INFO"])
+                for seg in seg_list:
+                    word_segment.append(seg)
 
             doc_word_list_.append((sample["ID"], word_segment))
 
@@ -143,14 +146,36 @@ def get_word_set(word_list):
     return word_set
 
 
-if __name__ == "__main__":
-    doc_word_list = doc_word_seg()
-    doc_word_list = symbols_removal(doc_word_list)
-    doc_word_list = duplicate_words_removal(doc_word_list)
-    word_frequency = calc_df(doc_word_list)
+def filter_stopwords():
+    preprocessor = Preprocessor()
+    new_lines = []
+    with open("../words_frequency.txt", "r", encoding="utf-8") as file:
+        lines = file.readlines()
+        for line in lines:
+            str_list = line.split(",")
+            word = str_list[0]
+            count = str_list[1]
 
-    with open("../words_frequency.txt", "w") as file:
-        for wf in word_frequency:
-            file.write("%s,%s" % (wf[0], wf[1]))
-            file.write("\n")
+            word = preprocessor.process_word(word)
+            if len(word) > 1:
+                new_lines.append((word, count))
         file.close()
+    with open("../words_frequency2.txt", "w", encoding="utf-8") as file:
+        for line in new_lines:
+            file.write("%s,%s" % (line[0], line[1]))
+        file.close()
+
+
+if __name__ == "__main__":
+    # doc_word_list = doc_word_seg()
+    # doc_word_list = symbols_removal(doc_word_list)
+    # doc_word_list = duplicate_words_removal(doc_word_list)
+    # word_frequency = calc_df(doc_word_list)
+    #
+    # with open("../words_frequency.txt", "w", encoding="utf-8") as file:
+    #     for wf in word_frequency:
+    #         file.write("%s,%s" % (wf[0], wf[1]))
+    #         file.write("\n")
+    #     file.close()
+
+    filter_stopwords()

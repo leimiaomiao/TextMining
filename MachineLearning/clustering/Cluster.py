@@ -2,7 +2,7 @@ import glob
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from util.FileReader import read_main_info, load_stop_words
-from word_segment.WordSegment import word_segment
+from word_segment.JiebaApi import word_segment
 
 
 TRUE_K = 8

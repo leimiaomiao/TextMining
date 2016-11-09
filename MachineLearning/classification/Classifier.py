@@ -2,7 +2,7 @@ import os
 import json
 from util.FileReader import read_main_info, load_stop_words
 from sklearn.feature_extraction.text import TfidfVectorizer
-from word_segment.WordSegment import word_segment
+from word_segment.JiebaApi import word_segment
 from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics, svm
