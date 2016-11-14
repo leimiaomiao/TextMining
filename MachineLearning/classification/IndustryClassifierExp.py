@@ -10,6 +10,7 @@ from sklearn.utils import shuffle
 from sklearn import metrics, svm, tree, naive_bayes
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
 import numpy as np
 
 
@@ -214,8 +215,6 @@ class IndustryClassifier(object):
 
         vec = TfidfVectorizer(min_df=10)
         train_x = vec.fit_transform(self.train_set).toarray()
-        print(vec.get_feature_names())
-        print(len(vec.get_feature_names()))
         train_y = np.array(self.train_set_category, dtype=str)
         train_x, train_y = shuffle(train_x, train_y)
 
@@ -224,7 +223,9 @@ class IndustryClassifier(object):
         test_x = vec.transform(self.test_set).toarray()
         test_y = np.array(self.test_set_category, dtype=str)
         pre_y = classifier.predict(test_x)
-        print("Method: %s accuracy score is %s" % (classifier_method, metrics.accuracy_score(test_y, pre_y)))
+        report = classification_report(test_y, pre_y)
+        print(report)
+        return report
 
 
 if __name__ == "__main__":
@@ -234,7 +235,7 @@ if __name__ == "__main__":
     for key in map.keys():
         print("%s : %s" % (key, len(map.get(key))))
 
-    industry_classifier.classify(classifier_method="NB")
-    industry_classifier.classify(classifier_method="DT")
+    # industry_classifier.classify(classifier_method="NB")
+    # industry_classifier.classify(classifier_method="DT")
     industry_classifier.classify(classifier_method="RFC")
-    industry_classifier.classify(classifier_method="SVM")
+    # industry_classifier.classify(classifier_method="SVM")
