@@ -6,3 +6,4 @@ config/*
 input
 output
 ltp_data
+/uni_application/uni_apply_data.csv

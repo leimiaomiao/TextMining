@@ -10,8 +10,10 @@ from sklearn.utils import shuffle
 from sklearn import metrics, svm, tree, naive_bayes
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.decomposition import PCA, TruncatedSVD
 import numpy as np
+from datetime import datetime
 
 
 class IndustryClassifier(object):
@@ -20,7 +22,9 @@ class IndustryClassifier(object):
     word_segment_file_root = "../data/output"
     preprocessor_file_path = "../data/preprocessed.json"
     industry_classification_dataset_file_path = "../data/industry_classification_dataset.json"
+    industry_classification_dataset_without_preprocess_file_path = "../data/industry_classification_dataset_unpreprocess.json"
     category_sample_map_file_path = "../data/category_sample_map.json"
+    category_sample_without_preprocess_map_file_path = "../data/category_sample_map_unpreprocess.json"
 
     classifier_dict = {
         "SVM": OneVsRestClassifier(svm.SVC(kernel="linear")),
@@ -29,7 +33,8 @@ class IndustryClassifier(object):
         "NB": naive_bayes.GaussianNB()
     }
 
-    def __init__(self):
+    def __init__(self, preprocess=True, min_df=0):
+        self.preprocess = preprocess
         if not os.path.exists(self.WS_MS_CATEGORY_FILE_PATH):
             self.samples = self.load_samples_category()
         else:
@@ -40,20 +45,28 @@ class IndustryClassifier(object):
 
         # Pre process samples,
         # including symbols removal, location name removal, numbers removal, human name removal, etc.
-        if not os.path.exists(self.preprocessor_file_path):
-            preprocessor = Preprocessor()
-            self.processed_samples = preprocessor.process_samples(self.word_seg_samples)
-            json.dump(self.processed_samples, open(self.preprocessor_file_path, "w"))
+        if self.preprocess:
+            if not os.path.exists(self.preprocessor_file_path):
+                preprocessor = Preprocessor()
+                self.processed_samples = preprocessor.process_samples(self.word_seg_samples)
+                json.dump(self.processed_samples, open(self.preprocessor_file_path, "w"))
+            else:
+                self.processed_samples = json.load(open(self.preprocessor_file_path, "r"))
         else:
-            self.processed_samples = json.load(open(self.preprocessor_file_path, "r"))
+            self.processed_samples = self.word_seg_samples
 
-        self.sample_category_map = self.get_sample_category_map()
+        self.sample_category_map = self.get_sample_category_map(preprocess=self.preprocess)
         self.train_set, self.train_set_category, self.test_set, self.test_set_category = self.load_data_set()
+        self.min_df = min_df
 
     def load_data_set(self, ratio=0.7):
         print("Start loading dataset...")
-        if os.path.exists(self.industry_classification_dataset_file_path):
-            data = json.load(open(self.industry_classification_dataset_file_path, "r"))
+        if self.preprocess:
+            file = self.industry_classification_dataset_file_path
+        else:
+            file = self.industry_classification_dataset_without_preprocess_file_path
+        if os.path.exists(file):
+            data = json.load(open(file, "r"))
             train_set = data["train_set"]
             train_set_category = data["train_set_category"]
             test_set = data["test_set"]
@@ -85,14 +98,19 @@ class IndustryClassifier(object):
                 "test_set": test_set,
                 "test_set_category": test_set_category
             }
-            json.dump(data, open(self.industry_classification_dataset_file_path, "w"))
+            json.dump(data, open(file, "w"))
         print("Loading dataset finished!")
         return train_set, train_set_category, test_set, test_set_category
 
-    def get_sample_category_map(self):
+    def get_sample_category_map(self, preprocess):
         print("Getting sample category map...")
-        if os.path.exists(self.category_sample_map_file_path):
-            category_map = json.load(open(self.category_sample_map_file_path, "r"))
+        if preprocess:
+            file = self.category_sample_map_file_path
+        else:
+            file = self.category_sample_without_preprocess_map_file_path
+
+        if os.path.exists(file):
+            category_map = json.load(open(file, "r"))
         else:
             category_map = {}
             for sample in self.processed_samples:
@@ -107,8 +125,8 @@ class IndustryClassifier(object):
                 else:
                     category_map[category] = list()
                     category_map[category].append(word_seg_sample)
-            json.dump(category_map, open(self.category_sample_map_file_path, "w"))
-        print("Getting sample category map finished!")
+            json.dump(category_map, open(file, "w"))
+
         return category_map
 
     def get_category_by_id(self, _id):
@@ -211,31 +229,41 @@ class IndustryClassifier(object):
         return ""
 
     def classify(self, classifier_method="RFC"):
+        start_time = datetime.now()
         classifier = self.classifier_dict.get(classifier_method)
 
-        vec = TfidfVectorizer(min_df=10)
+        vec = TfidfVectorizer(self.min_df)
+        # svd = TruncatedSVD(n_components=1000, n_iter=7, random_state=42)
+        svd = PCA(n_components=1500, svd_solver='full')
         train_x = vec.fit_transform(self.train_set).toarray()
+        train_x = svd.fit_transform(train_x)
         train_y = np.array(self.train_set_category, dtype=str)
-        train_x, train_y = shuffle(train_x, train_y)
+        # train_x, train_y = shuffle(train_x, train_y)
 
         classifier.fit(train_x, train_y)
-
         test_x = vec.transform(self.test_set).toarray()
         test_y = np.array(self.test_set_category, dtype=str)
+        test_x = svd.transform(test_x)
         pre_y = classifier.predict(test_x)
         report = classification_report(test_y, pre_y)
+        accuracy = accuracy_score(test_y, pre_y)
+        end_time = datetime.now()
+        print("Time expense: %s" % (end_time - start_time))
+        print("Accuracy: %s" % accuracy)
         print(report)
         return report
 
 
 if __name__ == "__main__":
-    industry_classifier = IndustryClassifier()
+    industry_classifier = IndustryClassifier(preprocess=True, min_df=10)
 
-    map = industry_classifier.sample_category_map
-    for key in map.keys():
-        print("%s : %s" % (key, len(map.get(key))))
+    # map = industry_classifier.sample_category_map
+    # for key in map.keys():
+    #     print("%s : %s" % (key, len(map.get(key))))
 
-    # industry_classifier.classify(classifier_method="NB")
-    # industry_classifier.classify(classifier_method="DT")
+    print("Test 1: with text preprocessing: %s" % industry_classifier.preprocess)
+    print("Min_df = %s" % industry_classifier.min_df)
+    industry_classifier.classify(classifier_method="NB")
+    industry_classifier.classify(classifier_method="DT")
     industry_classifier.classify(classifier_method="RFC")
-    # industry_classifier.classify(classifier_method="SVM")
+    industry_classifier.classify(classifier_method="SVM")

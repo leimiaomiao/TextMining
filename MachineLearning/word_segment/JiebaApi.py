@@ -18,4 +18,4 @@ if __name__ == "__main__":
     seg = word_segment("给原告销售'红樱子'有机高粱种子")
     print(" ".join(seg))
 
-    pos_tokenize("给原告销售'红樱子'有机高粱种子")
+    word_segment("给原告销售'红樱子'有机高粱种子")
